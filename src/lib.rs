@@ -82,9 +82,7 @@ impl Header {
         let natoms: usize = read_u32(file)?
             .try_into()
             .map_err(|err| io::Error::other(format!("could not read natoms: {err}")))?;
-        let step: u32 = read_i32(file)?
-            .try_into()
-            .map_err(|err| io::Error::other(format!("could not read step: {err}")))?;
+        let step: u32 = read_u32(file)?;
         let time = read_f32(file)?;
 
         // Read the frame data.
