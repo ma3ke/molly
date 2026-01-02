@@ -54,6 +54,16 @@ fn compare(path: impl AsRef<std::path::Path>) -> std::io::Result<()> {
         let xdr_positions = xdr_frame.coords.as_slice();
 
         assert_eq!(
+            cf_frame.step(),
+            molly_frame.step as usize,
+            "molly and chemfiles read a different simulation step"
+        );
+        assert_eq!(
+            xdr_frame.step, molly_frame.step as usize,
+            "molly and xdrfile read a different simulation step"
+        );
+
+        assert_eq!(
             molly_positions.len(),
             cf_positions.len(),
             "molly and chemfiles read a different number of atoms"

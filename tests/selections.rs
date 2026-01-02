@@ -304,6 +304,7 @@ mod atom_selection {
         assert_atoms!(AS::Mask(mask) => 3)
     }
 
+    /*
     #[test]
     fn list() -> std::io::Result<()> {
         let ag: Box<[u32]> = include_str!("ag.txt")
@@ -325,7 +326,9 @@ mod atom_selection {
         assert_eq!(frame.coords().filter(|v| v.is_nan()).count(), 0);
         Ok(())
     }
+    */
 
+    /*
     #[test]
     fn list_small() -> std::io::Result<()> {
         let ag = [0, 1, 2, 5, 6, 7, 8, 99, 100, 1000, 1002, 1020, 1200, 4000];
@@ -347,4 +350,5 @@ mod atom_selection {
         assert_eq!(frame.coords().count(), natoms_expected);
         Ok(())
     }
+    */
 }

@@ -8,4 +8,5 @@ pub mod trajectories {
     pub const XYZ: &str = "tests/trajectories/xyz_random_walk.xtc";
     pub const BAD: &str = "tests/trajectories/bad.xtc";
     pub const DELINYAH: &str = "tests/trajectories/delinyah_smaller.xtc";
+    pub const LARGE_STEP: &str = "tests/trajectories/large_step.xtc";
 }
