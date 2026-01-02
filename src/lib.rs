@@ -108,7 +108,7 @@ impl Header {
 
         let natoms = u32::try_from(self.natoms).unwrap().to_be_bytes();
         bytes.extend(natoms); // u32
-        bytes.extend(i32::try_from(self.step).unwrap().to_be_bytes()); // i32
+        bytes.extend(self.step.to_be_bytes()); // u32
         bytes.extend(self.time.to_be_bytes()); // f32
         bytes.extend(
             self.boxvec
