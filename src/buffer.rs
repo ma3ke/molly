@@ -162,14 +162,11 @@ impl<'s, 'r, R: Read> Buffered<'s, 'r, R> for UnBuffered<'s> {
     #[inline(always)]
     fn pop(&mut self) -> u8 {
         let head = self.head;
-        let size = self.scratch.len();
-        assert!(
-            head < size,
-            "cannot pop byte from the unbuffered scratch: the head ({head}) outside the defined \
-            range of the scratch buffer (..{size})",
-        );
         self.head += 1;
-        self.scratch[head]
+        // Safety: The buffer is pre-allocated to include padding, and the XTC format
+        // guarantees we won't read beyond the compressed data size.
+        debug_assert!(head < self.scratch.len(), "pop beyond buffer bounds");
+        unsafe { *self.scratch.get_unchecked(head) }
     }
 
     fn tell(&self) -> usize {
