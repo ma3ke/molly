@@ -1,0 +1,43 @@
+{
+    "title": "Molly - A Fast Reader and Writer for the XTC File Format",
+    "description": "A fast reader and writer for the Gromacs xtc file format implemented in pure Rust. Features selective frame and atom reading, buffered I/O, and Python bindings.",
+    "creators": [
+        {
+            "name": "Marieke Westendorp",
+            "affiliation": "University of Groningen",
+            "orcid": "0009-0005-2382-8913"
+        }
+    ],
+    "contributors": [
+        {"type": "Researcher", "name": "Ladislav Bartos", "orcid": "0000-0002-4869-0843"},
+        {"type": "Researcher", "name": "Mikael Lund", "orcid": "0000-0001-8178-8175"}
+    ],
+    "keywords": [
+        "molecular dynamics",
+        "gromacs",
+        "xtc",
+        "trajectory",
+        "file format",
+        "parser"
+    ],
+    "related_identifiers": [
+        {
+            "scheme": "url",
+            "identifier": "https://git.sr.ht/~ma3ke/molly",
+            "relation": "isSupplementTo"
+        },
+        {
+            "scheme": "url",
+            "identifier": "https://github.com/ma3ke/molly",
+            "relation": "isSupplementTo"
+        },
+        {
+            "scheme": "url",
+            "identifier": "https://crates.io/crates/molly",
+            "relation": "isSupplementTo"
+        }
+    ],
+    "license": "mit-license",
+    "access_right": "open",
+    "upload_type": "software"
+}
