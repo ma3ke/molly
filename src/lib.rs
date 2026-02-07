@@ -396,37 +396,24 @@ impl XTCReader<File> {
     ///
     /// This function will pass through any reader errors.
     pub fn determine_offsets_exclusive(&mut self, until: Option<usize>) -> io::Result<Box<[u64]>> {
-        let file = &mut self.file;
         // Remember where we start so we can return to it later.
-        let start_pos = file.stream_position()?;
+        let start_pos = self.file.stream_position()?;
 
         let mut offsets = Vec::new();
 
         while until.map_or(true, |until| offsets.len() < until) {
-            let header = match Header::read(file) {
+            let header = match self.read_header() {
                 Ok(header) => header,
                 Err(err) if err.kind() == io::ErrorKind::UnexpectedEof => break,
                 Err(err) => Err(err)?,
             };
 
-            let skip = if header.natoms <= 9 {
-                // Know how many bytes are in this frame until the next header since the positions
-                // are uncompressed.
-                header.natoms as u64 * 3 * 4
-            } else {
-                // We need to read the nbytes value to get the offset until the next header.
-                file.seek(SeekFrom::Current(32))?;
-                // The size of the buffer is stored either as a 64 or 32-bit integer, depending on
-                // the magic number in the header.
-                let nbytes = read_nbytes(file, header.magic)? as u64;
-                nbytes + padding(nbytes as usize) as u64
-            };
-            let offset = file.seek(SeekFrom::Current(skip as i64))?;
+            let offset = self.skip_positions(&header)?;
             offsets.push(offset);
         }
 
         // Return back to where we started.
-        file.seek(SeekFrom::Start(start_pos))?;
+        self.file.seek(SeekFrom::Start(start_pos))?;
 
         Ok(offsets.into_boxed_slice())
     }
@@ -556,6 +543,104 @@ impl XTCReader<File> {
         atom_selection: &AtomSelection,
     ) -> io::Result<()> {
         self.read_frame_with_scratch_impl::<Buffer>(frame, scratch, atom_selection)
+    }
+
+    /// Skip positions section of the current frame and jump to the start of the next frame.
+    ///
+    /// Assumes the file position is right after the `header` that is passed.
+    /// Returns the file offset of the start of the new frame.
+    pub fn skip_positions(&mut self, header: &Header) -> io::Result<u64> {
+        let skip = if header.natoms <= 9 {
+            // Know how many bytes are in this frame until the next header since the positions are
+            // uncompressed.
+            header.natoms as u64 * 3 * 4
+        } else {
+            // We need to read the nbytes value to get the offset until the next header.
+            self.file.seek(SeekFrom::Current(32))?;
+            // The size of the buffer is stored either as a 64 or 32-bit integer, depending on the
+            // magic number in the header.
+            let nbytes = read_nbytes(&mut self.file, header.magic)? as u64;
+            nbytes + padding(nbytes as usize) as u64
+        };
+        let offset = self.file.seek(SeekFrom::Current(skip as i64))?;
+        Ok(offset)
+    }
+
+    /// Skip frames until a frame where `time >= t` is found.
+    ///
+    /// If such frame is found, its header is returned and the file position is set to the start of
+    /// the frame.
+    ///
+    /// Assumes the file position is at the start of a frame.
+    pub fn skip_to_time(&mut self, t: f32) -> io::Result<Header> {
+        loop {
+            let pos = self.file.stream_position()?;
+            let header = self.read_header()?;
+            if header.time >= t {
+                // Go back to the start of this frame and return its header.
+                self.file.seek(SeekFrom::Start(pos))?;
+                return Ok(header);
+            }
+            // Skip to the next frame.
+            self.skip_positions(&header)?;
+        }
+    }
+
+    /// Skip forward `n` frames.
+    ///
+    /// Assumes the file position is at the start of the frame.
+    pub fn skip_frames(&mut self, n: u64) -> io::Result<()> {
+        for _ in 0..n {
+            self.seek_next()?
+        }
+        Ok(())
+    }
+
+    /// Step to the next frame.
+    ///
+    /// Assumes the file position is at the start of the frame.
+    pub fn seek_next(&mut self) -> io::Result<()> {
+        let header = self.read_header()?;
+        self.skip_positions(&header)?;
+        Ok(())
+    }
+
+    /// Step back one frame.
+    ///
+    /// If successful, the header of the previous frame is returned and the file position is set to
+    /// the start of that frame.
+    ///
+    /// Assumes the file position is at the start of the frame.
+    ///
+    /// # Errors
+    ///
+    /// If the start of the file is crossed because no previous frame is encountered, this function
+    /// will return an error.
+    pub fn seek_prev(&mut self) -> io::Result<Header> {
+        // TODO: Consider the logic and understand it.
+        // Logic is taken from xdrfile extension for mdtraj, I have no idea why it works :) @yesint.
+        const XDR_INT_SIZE: i64 = 4;
+        self.file.seek(SeekFrom::Current(-3 * XDR_INT_SIZE))?;
+        // Try reading a header until we find one, or we reach the start of the file.
+        loop {
+            // Remember the current offset to return to it if header will be read successfully.
+            let pos = self.file.stream_position()?;
+            if let Ok(header) = self.read_header() {
+                self.file.seek(SeekFrom::Start(pos))?;
+                return Ok(header);
+            } else {
+                // Header not found, keep seeking backwards.
+                // Will fail if passing beyond the start of the file.
+                self.file.seek(SeekFrom::Current(-2 * XDR_INT_SIZE))?;
+            }
+        }
+    }
+
+    /// Read the last frame in the trajectory.
+    pub fn read_last_frame(&mut self, frame: &mut Frame) -> io::Result<()> {
+        self.file.seek(SeekFrom::End(0))?;
+        self.seek_prev()?;
+        self.read_frame(frame)
     }
 }
 

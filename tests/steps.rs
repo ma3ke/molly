@@ -51,3 +51,81 @@ fn read_large_steps() {
         .map(|frame| frame.step)
         .eq(expected_steps));
 }
+
+#[test]
+fn test_skip_positions() {
+    let mut reader = molly::XTCReader::open(trajectories::COB).unwrap();
+    let mut frame = molly::Frame::default();
+    reader.read_frame(&mut frame).unwrap();
+    reader.read_frame(&mut frame).unwrap();
+    let step2 = frame.step;
+
+    reader.home().unwrap();
+
+    let header1 = reader.read_header().unwrap();
+    reader.skip_positions(&header1).unwrap();
+    let header2 = reader.read_header().unwrap();
+    assert_eq!(step2, header2.step);
+}
+
+#[test]
+fn test_skip_to_time() {
+    let mut reader = molly::XTCReader::open(trajectories::ADK).unwrap();
+    let mut frame = molly::Frame::default();
+    reader.read_frame(&mut frame).unwrap();
+    reader.read_frame(&mut frame).unwrap();
+    reader.read_frame(&mut frame).unwrap();
+    let step3 = frame.step;
+    let time3 = frame.time;
+    println!("{step3} {time3}");
+
+    reader.home().unwrap();
+
+    let header = reader.skip_to_time(time3).unwrap();
+    assert_eq!(time3, header.time);
+}
+
+#[test]
+fn test_skip_frames() {
+    let mut reader = molly::XTCReader::open(trajectories::ADK).unwrap();
+    let mut frame = molly::Frame::default();
+    reader.read_frame(&mut frame).unwrap();
+    reader.read_frame(&mut frame).unwrap();
+    reader.read_frame(&mut frame).unwrap();
+    let step3 = frame.step;
+    let time3 = frame.time;
+    println!("{step3} {time3}");
+
+    reader.home().unwrap();
+
+    reader.skip_frames(2).unwrap();
+    let header = reader.read_header().unwrap();
+    assert_eq!(time3, header.time);
+}
+
+#[test]
+fn test_seek_prev() {
+    let mut reader = molly::XTCReader::open(trajectories::ADK).unwrap();
+    let mut frame = molly::Frame::default();
+    reader.read_frame(&mut frame).unwrap();
+    reader.read_frame(&mut frame).unwrap();
+    let step2 = frame.step;
+    let time2 = frame.time;
+    println!("{step2} {time2}");
+
+    let header = reader.seek_prev().unwrap();
+    assert_eq!(time2, header.time);
+}
+
+#[test]
+fn test_read_last() {
+    let mut reader = molly::XTCReader::open(trajectories::ADK).unwrap();
+    let frames = reader.read_all_frames().unwrap();
+    let last_time = frames.last().unwrap().time;
+
+    reader.home().unwrap();
+
+    let mut fr = molly::Frame::default();
+    reader.read_last_frame(&mut fr).unwrap();
+    assert_eq!(last_time, fr.time);
+}
