@@ -28,7 +28,6 @@ default = []
 cli = ["dep:clap"]
 
 [dev-dependencies]
-chemfiles = "0.10.41"
 xdrfile = "0.3.0"
 bencher = "0.1.5"
 tempfile = "3"

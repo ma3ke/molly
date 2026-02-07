@@ -6,7 +6,6 @@ benchmark_group!(
     encoding,
     write_compressed_positions,
     write_compressed_positions_direct,
-    write_compressed_positions_chemfiles,
     write_compressed_positions_xdrfile
 );
 
@@ -41,22 +40,6 @@ fn write_compressed_positions_direct(b: &mut Bencher) {
         let writer = BufWriter::new(file);
         let mut xtc_writer = XTCWriter::new(writer);
         xtc_writer.write_frame(&frame).unwrap();
-    });
-
-    let _ = std::fs::remove_file(&tmp_path);
-}
-
-fn write_compressed_positions_chemfiles(b: &mut Bencher) {
-    let mut cf_reader = chemfiles::Trajectory::open_with_format(PATH, 'r', "XTC").unwrap();
-    let mut cf_frame = chemfiles::Frame::new();
-    cf_reader.read(&mut cf_frame).unwrap();
-
-    let tmp_path = std::env::temp_dir().join("bench_chemfiles.xtc");
-
-    b.iter(|| {
-        let mut trajectory =
-            chemfiles::Trajectory::open_with_format(&tmp_path, 'w', "XTC").unwrap();
-        trajectory.write(&cf_frame).unwrap();
     });
 
     let _ = std::fs::remove_file(&tmp_path);

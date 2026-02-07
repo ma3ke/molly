@@ -173,7 +173,9 @@ story for _molly_, this is not yet the time for hard promises.
 
 It looks like _molly_ is around 2&times; faster than [_xdrf_][xdrf]
 (the widely-used Gromacs implementation), and around 4&times; faster than the
-[_chemfiles_ implementation][chemfiles].
+[_chemfiles_ implementation][chemfiles]. (The development dependency on
+_chemfiles_ enabling benchmark comparisons was dropped after 0.6.0 due to its
+instability.)
 
 For the buffered implementations this gap is slightly less pronounced. When
 disk I/O is factored out, buffered reading is around 20% slower than unbuffered
