@@ -242,7 +242,7 @@ impl<R: Read> XTCReader<R> {
     /// # Panics
     ///
     /// `natoms` must be 9 or less, otherwise the positions must be decompressed and cannot be read
-    /// directly through this function.  
+    /// directly through this function.
     ///
     /// Oh xtc, you are so fucking weird.
     pub fn read_smol_positions(
