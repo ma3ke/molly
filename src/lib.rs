@@ -617,10 +617,20 @@ impl XTCReader<File> {
     /// If the start of the file is crossed because no previous frame is encountered, this function
     /// will return an error.
     pub fn seek_prev(&mut self) -> io::Result<Header> {
-        // TODO: Consider the logic and understand it.
-        // Logic is taken from xdrfile extension for mdtraj, I have no idea why it works :) @yesint.
+        // An XTC file follows the XDR convention of consisting entirely out of 32-bit blocks.
         const XDR_INT_SIZE: i64 = 4;
-        self.file.seek(SeekFrom::Current(-3 * XDR_INT_SIZE))?;
+        // Step back a little, because we don't want to read the header we are currently at.
+        // We know we can go back at least the number of bytes in a header, plus the precision
+        // field, plus the size of the `nbytes` field, plus the minimum number of compressed bytes.
+        //
+        // Depending on whether we're reading XTC 1995 or 2023, that `nbytes` field is a 32-bit or
+        // 64-bit integer, respectively. So we can say it is at least one XDR_INT_SIZE. The
+        // precision field is worth one XDR_INT_SIZE as well.
+        // The minimum number of bytes for the compressed positions section could certainly be
+        // computed, but it would depend on the precision and that makes this simple optimization
+        // trickier than necessary.
+        self.file
+            .seek(SeekFrom::Current(-(Header::SIZE as i64 + XDR_INT_SIZE * 2)))?;
         // Try reading a header until we find one, or we reach the start of the file.
         loop {
             // Remember the current offset to return to it if header will be read successfully.
@@ -629,8 +639,12 @@ impl XTCReader<File> {
                 self.file.seek(SeekFrom::Start(pos))?;
                 return Ok(header);
             } else {
-                // Header not found, keep seeking backwards.
-                // Will fail if passing beyond the start of the file.
+                // Header not found, keep seeking backwards. We go back by two integers' worth of
+                // bytes, because by trying to read the header and failing because the magic number
+                // was incorrect, we did end up reading one byte. Will fail if passing beyond the
+                // start of the file.
+                // NOTE: It is _technically_ possible (but realistically impossible) that while
+                // trying to read the `Header`, more than one integer is read.
                 self.file.seek(SeekFrom::Current(-2 * XDR_INT_SIZE))?;
             }
         }
