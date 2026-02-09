@@ -2,3 +2,4 @@
 /trajectories
 /venv
 *.xtc
+*.xtc_offsets.npz
