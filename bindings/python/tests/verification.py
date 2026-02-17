@@ -154,6 +154,58 @@ def test_write_roundtrip(path):
     print(f"\tOK!\t\tRoundtrip verified for {nframes} frames.")
 
 
+def test_write_from_scratch():
+    """Test writing frames and reading them back, but from scratch."""
+    print("TEST: write from scratch")
+    # Write temp file.
+    with tempfile.NamedTemporaryFile(suffix=".xtc", delete=False) as tmp:
+        tmp_path = tmp.name
+
+    start = time.time()
+    writer = molly.XTCWriter(tmp_path)
+    generator = np.random.default_rng(seed=42)
+    n_atoms = 1000
+    n_frames = 1000
+    positions = generator.random((n_frames, n_atoms, 3), dtype=np.float32) * 5.
+    box = np.array([
+        [5., 0., 0.],
+        [0., 5., 0.],
+        [0., 0., 5.]
+    ], dtype=np.float32)
+    for i, frame in enumerate(positions):
+        f = molly.Frame()
+        f.box = box
+        f.positions = frame.flatten()
+        f.time = i * 0.02
+        f.step = i
+        # precision intentionally left blank
+        writer.write_frame(f)
+    writer.close()
+    print(f"\tWrote {n_frames} frames {n_atoms} atoms in {time.time() - start:.3f} s")
+
+    # Read back and check if it's the same.
+    start = time.time()
+    reader = molly.XTCReader(tmp_path)
+    read_positions = np.empty((n_frames, n_atoms, 3), dtype=np.float32)
+    for i in range(n_frames):
+        read_positions[i, :, :] = reader.pop_frame().positions
+
+    for i in range(n_frames):
+        assert np.allclose(
+            positions[i],
+            read_positions[i],
+            rtol=0.,
+            atol=1e-3
+        ), f"Frame {i}: Coordinate mismatch."
+    print(f"\tRead {n_frames} frames {n_atoms} atoms in {time.time() - start:.3f} s")
+
+    # Clean up.
+    import os
+    os.unlink(tmp_path)
+
+    print(f"\tOK!\t\tWrite from scratch for {n_frames} frames.")
+
+
 path = "../../tests/trajectories/trajectory_smol.xtc"
 full_mda_frames, _ = read_all(path)
 
@@ -170,3 +222,6 @@ read_test(path, full_mda_frames, slice(25, 50, 3))
 
 # Write roundtrip test.
 test_write_roundtrip(path)
+
+# Write from scratch test
+test_write_from_scratch()
