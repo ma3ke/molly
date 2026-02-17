@@ -125,7 +125,7 @@ impl Header {
     }
 }
 
-#[derive(Debug, Default, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Frame {
     pub step: u32,
     /// Time in picoseconds.
@@ -167,6 +167,18 @@ impl Frame {
             "the number of single positions in a frame must always be a multiple of 3"
         );
         npos / 3
+    }
+}
+
+impl Default for Frame {
+    fn default() -> Self {
+        Frame {
+            step: Default::default(),
+            time: Default::default(),
+            boxvec: Default::default(),
+            precision: 1000.,
+            positions: Default::default()
+        }
     }
 }
 
