@@ -91,7 +91,7 @@ impl FromPyObject<'_> for AtomSelection {
 #[pyclass]
 struct XTCReader {
     inner: molly::XTCReader<std::fs::File>,
-    frame: Option<Frame>,
+    frame: Option<Py<Frame>>,
     buffered: bool,
 }
 
@@ -121,8 +121,11 @@ impl XTCReader {
     }
 
     #[getter]
-    fn get_frame(&self) -> Option<Frame> {
-        self.frame.clone() // FIXME: Is there a way around this?
+    fn get_frame(&self, py: Python) -> Option<Py<Frame>> {
+        match &self.frame {
+            None => None,
+            Some(frame) => Some(frame.clone_ref(py)),
+        }
     }
 
     /// Returns the offsets of this `XTCReader` from its current position.
@@ -149,20 +152,20 @@ impl XTCReader {
     }
 
     /// Read a single frame into the `frame` field of the `XTCReader`.
-    fn read_frame(&mut self) -> io::Result<()> {
-        if self.frame.is_none() {
-            self.frame = Some(Frame::default());
-        }
-        let frame = &mut self.frame.as_mut().unwrap().inner;
-        self.inner.read_frame(frame)
+    fn read_frame(&mut self, py: Python) -> io::Result<()> {
+        let mut frame = self
+            .frame
+            .get_or_insert(Py::new(py, Frame::default())?)
+            .borrow_mut(py);
+        self.inner.read_frame(&mut frame.inner)
     }
 
     /// Read a single frame and return a copy.
     ///
     /// Calls `read_frame` internally and returns the frame immediately.
-    fn pop_frame(&mut self) -> io::Result<Frame> {
-        self.read_frame()?;
-        Ok(self.frame.clone().unwrap())
+    fn pop_frame(&mut self, py: Python) -> io::Result<Py<Frame>> {
+        self.read_frame(py)?;
+        Ok(self.frame.as_ref().unwrap().clone_ref(py))
     }
 
     /// Read frames according to the selections and return the frames as a list.
