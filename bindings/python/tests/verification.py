@@ -205,6 +205,25 @@ def test_write_from_scratch():
 
     print(f"\tOK!\t\tWrite from scratch for {n_frames} frames.")
 
+def test_reference_semantics(path):
+    """Tests whether XTCReader's buffered frame has reference semantics."""
+    print("TEST: XTCReader.frame reference semantics")
+    reader = molly.XTCReader(path)
+    # read 1 frame
+    f = reader.pop_frame()
+    assert f.step == 0
+    # read another frame
+    reader.read_frame()
+    # checks whether f is a reference to a single buffered "frame" that
+    # can be mutated by the reader
+    assert f.step > 0
+    # mutate f manually and check if it updated reader.f
+    chosen_number = f.step + 0xabc
+    f.step = chosen_number
+    assert reader.frame.step == chosen_number
+    print(f"\tOK!")
+    print(f"\tXTCReader.frame has reference semantics")
+
 
 path = "../../tests/trajectories/trajectory_smol.xtc"
 full_mda_frames, _ = read_all(path)
@@ -225,3 +244,6 @@ test_write_roundtrip(path)
 
 # Write from scratch test
 test_write_from_scratch()
+
+# XTC Reader frame reference semantics
+test_reference_semantics(path)
