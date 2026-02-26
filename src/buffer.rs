@@ -161,15 +161,10 @@ impl<'s, 'r, R: Read> Buffered<'s, 'r, R> for UnBuffered<'s> {
 
     #[inline(always)]
     fn pop(&mut self) -> u8 {
-        let head = self.head;
-        let size = self.scratch.len();
-        assert!(
-            head < size,
-            "cannot pop byte from the unbuffered scratch: the head ({head}) outside the defined \
-            range of the scratch buffer (..{size})",
-        );
+        let (&byte, rest) = self.scratch.split_first().expect("pop beyond buffer bounds");
+        self.scratch = rest;
         self.head += 1;
-        self.scratch[head]
+        byte
     }
 
     fn tell(&self) -> usize {
