@@ -1,4 +1,4 @@
-# _molly_&mdash;read `xtc` files, fast
+# _molly_&mdash;read and write `xtc` files, fast
 
 > **NOTE:**
 > This repository is hosted on [sourcehut][sourcehut] and recently on
@@ -34,6 +34,13 @@ filtering xtc files. It supports the 1995 and 2023 magic numbers.
 > irresponsible.
 >
 > For any questions, feel free to get in [contact][contact] with me.
+
+## Cite
+
+If you use _molly_ in your publication or library, please cite it.
+
+> Marieke Westendorp. (2026). Molly—A fast reader and writer for the XTC file
+> format. Zenodo. <https://doi.org/10.5281/zenodo.18902575>
 
 ## Installation
 
