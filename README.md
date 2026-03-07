@@ -194,6 +194,10 @@ the top of each frame is selected, the advantage is considerable.
 - I want to thank [Ladislav Bartos](https://github.com/Ladme) for his
   contributions and feedback, including his fix of the large frame number–bug.
 - Thanks to [Mikael Lund](https://github.com/mlund) for adding writing support.
+- [Semen Yesylevskyy](https://github.com/yesint) added additional frame seeking
+  functionality. Thanks!
+- Thanks [Aster Kovács](https://github.com/aster31), for your sharp eye and
+  helpful fixes.
 
 [sourcehut]: https://git.sr.ht/~ma3ke/molly
 [github]: https://github.com/ma3ke/molly
