@@ -11,7 +11,8 @@
     "contributors": [
         {"type": "Researcher", "name": "Ladislav Bartos", "orcid": "0000-0002-4869-0843"},
         {"type": "Researcher", "name": "Mikael Lund", "orcid": "0000-0001-8178-8175"},
-        {"type": "Researcher", "name": "Semen Yesylevskyy", "orcid": "0000-0002-6748-8931"}
+        {"type": "Researcher", "name": "Semen Yesylevskyy", "orcid": "0000-0002-6748-8931"},
+        {"type": "Researcher", "name": "Aster Kovács", "orcid": "0009-0007-5770-5481"}
     ],
     "keywords": [
         "molecular dynamics",
