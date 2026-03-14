@@ -288,6 +288,15 @@ pub fn write_compressed_positions<W: Write>(
         .map(|p| [to_int(p[0]), to_int(p[1]), to_int(p[2])])
         .collect();
 
+    write_int_positions(writer, &mut int_coords, magic)
+}
+
+// Internal function that writes int positions
+pub(crate) fn write_int_positions<W: Write>(
+    writer: &mut W,
+    int_coords: &mut [[i32;3]],
+    magic: Magic,
+) -> io::Result<usize> {
     let (minint, maxint) = calc_bounds(&int_coords);
     let smallidx = find_initial_smallidx(&int_coords);
 
@@ -305,7 +314,7 @@ pub fn write_compressed_positions<W: Write>(
     encode_coordinates(
         &mut compressed,
         &mut state,
-        &mut int_coords,
+        int_coords,
         minint,
         bitsize,
         &sizeint,
@@ -318,6 +327,7 @@ pub fn write_compressed_positions<W: Write>(
 
     Ok(compressed.len())
 }
+
 
 /// Encode coordinates with run-length compression and water swap.
 #[allow(clippy::too_many_arguments)]
