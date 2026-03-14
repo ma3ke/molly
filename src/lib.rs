@@ -736,8 +736,9 @@ impl<W: Write> XTCWriter<W> {
         Ok(())
     }
 
-    /// Write parts of the frame to XTC file.
-    /// This method allows writing coordinates from any iterator yielding &[f32;3]
+    /// Write parts of the frame to the XTC file.
+    ///
+    /// Coordinates are sourced from any [`ExactSizeIterator`] yielding `&[f32; 3]`.
     pub fn write_frame_parts<'a>(
         &'a mut self,
         step: u32,
