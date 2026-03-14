@@ -291,7 +291,6 @@ pub fn write_compressed_positions<W: Write>(
     write_int_positions(writer, &mut int_coords, magic)
 }
 
-// Internal function that writes int positions
 pub(crate) fn write_int_positions<W: Write>(
     writer: &mut W,
     int_coords: &mut [[i32;3]],
