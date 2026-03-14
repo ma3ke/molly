@@ -290,6 +290,12 @@ pub(crate) fn read_u64<R: Read>(file: &mut R) -> io::Result<u64> {
     Ok(u64::from_be_bytes(buf))
 }
 
+pub(crate) fn read_f64<R: Read>(file: &mut R) -> io::Result<f64> {
+    let mut buf: [u8; 8] = Default::default();
+    file.read_exact(&mut buf)?;
+    Ok(f64::from_be_bytes(buf))
+}
+
 pub fn read_nbytes<R: Read>(reader: &mut R, magic: Magic) -> io::Result<usize> {
     let nbytes = match magic {
         Magic::Xtc1995 => read_u32(reader)? as usize,

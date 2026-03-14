@@ -9,4 +9,9 @@ pub mod trajectories {
     pub const BAD: &str = "tests/trajectories/bad.xtc";
     pub const DELINYAH: &str = "tests/trajectories/delinyah_smaller.xtc";
     pub const LARGE_STEP: &str = "tests/trajectories/large_step.xtc";
+
+    // TRR trajectories
+    pub const ADK_TRR: &str = "tests/trajectories/adk_oplsaa.trr";
+    pub const SMOL_TRR: &str = "tests/trajectories/trajectory_smol.trr";
+    pub const TEN_TRR: &str = "tests/trajectories/xtc_test_only_10_frame_10_atoms.trr";
 }

@@ -14,7 +14,10 @@ use crate::writer::{write_compressed_positions, write_int_positions};
 pub mod buffer;
 pub mod reader;
 pub mod selection;
+pub mod trr;
 pub mod writer;
+
+pub use trr::{TRRFrame, TRRHeader, TRRReader, TRRWriter};
 
 // See https://gitlab.com/gromacs/gromacs/-/blob/v2024.1/src/gromacs/fileio/xdrf.h?ref_type=tags#L78
 pub const XTC_1995_MAX_NATOMS: usize = 298261617;
