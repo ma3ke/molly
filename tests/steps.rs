@@ -4,15 +4,9 @@ use common::trajectories;
 // The trajectory for this test is very large so it does not live within the repository. If the
 // trajectory is not present, we always pass the test. Discussed in #20.
 #[test]
+#[ignore = "trajectory file is not present"]
 fn read_large_steps() {
-    let Ok(mut molly_reader) = molly::XTCReader::open(trajectories::LARGE_STEP) else {
-        eprint!(
-            "WARNING: Skipping test at {}:{} because the test data is not present.",
-            file!(),
-            line!()
-        );
-        return;
-    };
+    let mut molly_reader = molly::XTCReader::open(trajectories::LARGE_STEP).unwrap();
 
     let mut buffered_read_frames = Vec::new();
     molly_reader
