@@ -40,7 +40,7 @@ filtering xtc files. It supports the 1995 and 2023 magic numbers.
 If you use _molly_ in your publication or library, please cite it.
 
 > Marieke Westendorp. (2026). Molly—A fast reader and writer for the XTC file
-> format. Zenodo. <https://doi.org/10.5281/zenodo.18902575>
+> format. Zenodo. <https://doi.org/10.5281/zenodo.18902574>
 
 ## Installation
 
