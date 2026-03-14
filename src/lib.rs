@@ -9,7 +9,7 @@ use crate::reader::{
     read_boxvec, read_compressed_positions, read_f32, read_f32s, read_i32, read_u32,
 };
 use crate::selection::{AtomSelection, FrameSelection};
-use crate::writer::write_compressed_positions;
+use crate::writer::{write_compressed_positions, write_int_positions};
 
 pub mod buffer;
 pub mod reader;
@@ -177,7 +177,7 @@ impl Default for Frame {
             time: Default::default(),
             boxvec: Default::default(),
             precision: 1000.,
-            positions: Default::default()
+            positions: Default::default(),
         }
     }
 }
@@ -734,5 +734,46 @@ impl<W: Write> XTCWriter<W> {
             self.file.write_all(&pos.to_be_bytes())?;
         }
         Ok(())
+    }
+
+    /// Write parts of the frame to the XTC file.
+    ///
+    /// Coordinates are sourced from any [`ExactSizeIterator`] yielding `&[f32; 3]`.
+    pub fn write_frame_parts<'a>(
+        &'a mut self,
+        step: u32,
+        time: f32,
+        boxvec: [f32; 9],
+        coords: impl ExactSizeIterator<Item = &'a [f32; 3]>,
+        precision: f32,
+    ) -> io::Result<()> {
+        let natoms = coords.len();
+        let header = Header {
+            magic: self.magic,
+            natoms,
+            step,
+            time,
+            boxvec,
+            natoms_repeated: natoms,
+        };
+
+        self.file.write_all(&header.to_be_bytes())?;
+
+        if natoms <= 9 {
+            let vec: Vec<f32> = coords.flatten().cloned().collect();
+            assert_eq!(vec.len(), natoms * 3);
+            self.write_smol_positions(&vec)
+        } else {
+            let to_int = |f: f32| (f * precision).round() as i32;
+            let mut int_coords: Vec<[i32; 3]> = coords
+                .map(|p| [to_int(p[0]), to_int(p[1]), to_int(p[2])])
+                .collect();
+            assert_eq!(int_coords.len(), natoms);
+
+            self.file.write_all(&precision.to_be_bytes())?;
+            
+            write_int_positions(&mut self.file, &mut int_coords, self.magic)?;
+            Ok(())
+        }
     }
 }

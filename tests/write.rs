@@ -74,6 +74,87 @@ fn encode_size(path: &str) -> io::Result<usize> {
 }
 
 #[test]
+fn write_frame_parts_noncontiguous_ten() -> io::Result<()> {
+    let frames = XTCReader::open(trajectories::TEN)?.read_all_frames()?;
+    let atom_indices: &[usize] = &[1, 3, 7];
+
+    let mut buf = Vec::new();
+    {
+        let mut writer = XTCWriter::new(Cursor::new(&mut buf));
+        for frame in &frames {
+            let coords: Vec<[f32; 3]> = atom_indices
+                .iter()
+                .map(|&i| frame.positions[3 * i..3 * i + 3].try_into().unwrap())
+                .collect();
+            writer.write_frame_parts(frame.step, frame.time, frame.boxvec, coords.iter(), frame.precision)?;
+        }
+    }
+
+    let roundtrip = XTCReader::new(Cursor::new(&buf)).read_all_frames()?;
+
+    assert_eq!(frames.len(), roundtrip.len());
+    for (i, (orig, rt)) in frames.iter().zip(roundtrip.iter()).enumerate() {
+        assert_eq!(orig.step, rt.step, "frame {i}: step mismatch");
+        assert_eq!(orig.time, rt.time, "frame {i}: time mismatch");
+        assert_eq!(orig.boxvec, rt.boxvec, "frame {i}: boxvec mismatch");
+        assert_eq!(rt.positions.len(), atom_indices.len() * 3, "frame {i}: position count mismatch");
+        for (j, &atom_idx) in atom_indices.iter().enumerate() {
+            for k in 0..3 {
+                let orig_val = orig.positions[3 * atom_idx + k];
+                let rt_val = rt.positions[3 * j + k];
+                let diff = (orig_val - rt_val).abs();
+                assert!(
+                    diff < 1e-5,
+                    "frame {i}, atom {atom_idx}, coord {k}: mismatch ({orig_val} vs {rt_val}, diff {diff})"
+                );
+            }
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn write_frame_parts_noncontiguous_delinyah() -> io::Result<()> {
+    let frames = XTCReader::open(trajectories::DELINYAH)?.read_all_frames()?;
+    let natoms = frames[0].positions.len() / 3;
+    let atom_indices: Vec<usize> = (3..natoms).step_by(7).collect();
+
+    let mut buf = Vec::new();
+    {
+        let mut writer = XTCWriter::new(Cursor::new(&mut buf));
+        for frame in &frames {
+            let coords: Vec<[f32; 3]> = atom_indices
+                .iter()
+                .map(|&i| frame.positions[3 * i..3 * i + 3].try_into().unwrap())
+                .collect();
+            writer.write_frame_parts(frame.step, frame.time, frame.boxvec, coords.iter(), frame.precision)?;
+        }
+    }
+
+    let roundtrip = XTCReader::new(Cursor::new(&buf)).read_all_frames()?;
+
+    assert_eq!(frames.len(), roundtrip.len());
+    for (i, (orig, rt)) in frames.iter().zip(roundtrip.iter()).enumerate() {
+        assert_eq!(orig.step, rt.step, "frame {i}: step mismatch");
+        assert_eq!(orig.time, rt.time, "frame {i}: time mismatch");
+        assert_eq!(orig.boxvec, rt.boxvec, "frame {i}: boxvec mismatch");
+        assert_eq!(rt.positions.len(), atom_indices.len() * 3, "frame {i}: position count mismatch");
+        for (j, &atom_idx) in atom_indices.iter().enumerate() {
+            for k in 0..3 {
+                let orig_val = orig.positions[3 * atom_idx + k];
+                let rt_val = rt.positions[3 * j + k];
+                let diff = (orig_val - rt_val).abs();
+                assert!(
+                    diff < 1e-5,
+                    "frame {i}, atom {atom_idx}, coord {k}: mismatch ({orig_val} vs {rt_val}, diff {diff})"
+                );
+            }
+        }
+    }
+    Ok(())
+}
+
+#[test]
 #[ignore]
 fn report_compressed_sizes() -> io::Result<()> {
     let inputs = [
