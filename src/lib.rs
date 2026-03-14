@@ -738,10 +738,6 @@ impl<W: Write> XTCWriter<W> {
 
     /// Write parts of the frame to XTC file.
     /// This method allows writing coordinates from any iterator yielding &[f32;3]
-    /// natoms should be provided separately since it has to be known before
-    /// going through iterator.
-    /// # Panics
-    /// Panics if the actual size of iterator is not equal to natoms.
     pub fn write_frame_parts<'a>(
         &'a mut self,
         step: u32,
@@ -751,8 +747,6 @@ impl<W: Write> XTCWriter<W> {
         precision: f32,
     ) -> io::Result<()> {
         let natoms = coords.len();
-        assert_eq!(natoms % 3, 0);
-
         let header = Header {
             magic: self.magic,
             natoms,
