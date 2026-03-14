@@ -53,11 +53,11 @@ dependencies = [
 
 [[package]]
 name = "molly"
-version = "0.6.0"
+version = "0.6.1"
 
 [[package]]
 name = "molly-python"
-version = "0.6.0"
+version = "0.6.1"
 dependencies = [
  "molly",
  "numpy",
