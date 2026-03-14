@@ -328,7 +328,6 @@ pub(crate) fn write_int_positions<W: Write>(
     Ok(compressed.len())
 }
 
-
 /// Encode coordinates with run-length compression and water swap.
 #[allow(clippy::too_many_arguments)]
 fn encode_coordinates(
