@@ -1,5 +1,5 @@
 {
-    "title": "Molly - A Fast Reader and Writer for the XTC File Format",
+    "title": "Molly—a fast reader and writer for the XTC file format",
     "description": "A fast reader and writer for the Gromacs xtc file format implemented in pure Rust. Features selective frame and atom reading, buffered I/O, and Python bindings.",
     "creators": [
         {
