@@ -3,9 +3,14 @@
     "description": "A fast reader and writer for the Gromacs xtc file format implemented in pure Rust. Features selective frame and atom reading, buffered I/O, and Python bindings.",
     "creators": [
         {
-            "name": "Marieke Westendorp",
+            "name": "Marieke S.S. Westendorp",
             "affiliation": "University of Groningen",
             "orcid": "0009-0005-2382-8913"
+        },
+        {
+            "name": "Tsjerk A. Wassenaar",
+            "affiliation": "University of Groningen",
+            "orcid": "0000-0002-6345-0266"
         }
     ],
     "contributors": [
