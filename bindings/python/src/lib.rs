@@ -1,6 +1,7 @@
 #![allow(non_local_definitions, dead_code)]
 
 use std::io;
+use std::io::Seek;
 use std::num::NonZeroU64;
 use std::path::PathBuf;
 
@@ -193,6 +194,27 @@ impl XTCReader {
         Ok((&self.frame).as_ref().map(|x| x.clone_ref(py)))
     }
 
+    /// Skip a single frame and return the file position after.
+    ///
+    /// Returns None if no frame could be skipped.
+    fn skip_frame(&mut self) -> io::Result<Option<u64>> {
+        let header = match self.inner()?.read_header() {
+            Ok(x) => x,
+            Err(err) => {
+                return match err.kind() {
+                    io::ErrorKind::UnexpectedEof => Ok(None),
+                    _ => Err(err),
+                }
+            }
+        };
+        Ok(Some(self.inner()?.skip_positions(&header)?))
+    }
+
+    /// Get the current file position.
+    fn tell(&mut self) -> io::Result<u64> {
+        self.inner()?.file.stream_position()
+    }
+
     /// Read frames according to the selections and return the frames as a list.
     ///
     /// # Note
@@ -381,10 +403,20 @@ struct XTCWriter {
 
 #[pymethods]
 impl XTCWriter {
-    /// Create a new XTC file at the given path.
+    /// Open an XTC file at the given path for writing.
+    ///
+    /// If append is False (default), it will try to create a new file.
+    ///
+    /// If append is True, it will append to the existing file. In this case,
+    /// an exception will be raised if the file does not exist yet.
     #[new]
-    fn create(path: PathBuf) -> io::Result<Self> {
-        let file = std::fs::File::create(path)?;
+    #[pyo3(signature = (path, /, append=false))]
+    fn create(path: PathBuf, append: bool) -> io::Result<Self> {
+        let file = if append {
+            std::fs::OpenOptions::new().append(true).open(path)?
+        } else {
+            std::fs::File::create(path)?
+        };
         let writer = std::io::BufWriter::new(file);
         Ok(Self {
             inner: Some(molly::XTCWriter::new(writer)),

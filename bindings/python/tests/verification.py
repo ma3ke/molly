@@ -232,6 +232,97 @@ def test_reference_semantics(path):
     print("\tXTCReader.frame has reference semantics")
 
 
+def test_append():
+    """Test appending to existing .xtc files."""
+    print("TEST: append")
+    # Write temp file.
+    with tempfile.NamedTemporaryFile(suffix=".xtc", delete=False) as tmp:
+        tmp_path = tmp.name
+    start = time.time()
+    writer = molly.XTCWriter(tmp_path)
+    generator = np.random.default_rng(seed=1234)
+    n_atoms = 1000
+    n_frames = 1000
+    append_every = 100
+
+    positions = generator.random((n_frames, n_atoms, 3), dtype=np.float32) * 5.
+    box = np.array([
+        [5., 0., 0.],
+        [0., 5., 0.],
+        [0., 0., 5.]
+    ], dtype=np.float32)
+    for i, frame in enumerate(positions):
+        f = molly.Frame()
+        f.box = box
+        f.positions = frame.flatten()
+        f.time = i * 0.02
+        f.step = i
+        # precision intentionally left blank
+        writer.write_frame(f)
+        if i > 0 and i % append_every == 0:
+            writer.close()
+            writer = molly.XTCWriter(tmp_path, append=True)
+    writer.close()
+    print(f"\tWrote {n_frames} frames {n_atoms} atoms in {time.time() - start:.3f} s")
+
+    # Read back and check if it's the same.
+    start = time.time()
+    reader = molly.XTCReader(tmp_path)
+    read_positions = np.empty((n_frames, n_atoms, 3), dtype=np.float32)
+    for i in range(n_frames):
+        read_positions[i, :, :] = reader.pop_frame().positions
+    assert reader.pop_frame() is None
+
+    for i in range(n_frames):
+        assert np.allclose(
+            positions[i],
+            read_positions[i],
+            rtol=0.,
+            atol=1e-3
+        ), f"Frame {i}: Coordinate mismatch."
+    print(f"\tRead {n_frames} frames {n_atoms} atoms in {time.time() - start:.3f} s")
+
+    # Clean up.
+    import os
+    os.unlink(tmp_path)
+
+    print(f"\tOK!\tAppend for {n_frames} frames.")
+
+
+def test_skipping_frames(path):
+    """Read some frames and verify them, then skip some frames."""
+
+    print("TEST: skip frames")
+    mda_reader, molly_reader = setup_readers(path)
+
+    for i in range(mda_reader.n_frames):
+        if i % 5 > 0:
+            molly_reader.skip_frame()
+        else:
+            mda_positions = mda_reader.trajectory[i].positions
+            molly_positions = molly_reader.pop_frame().positions
+            assert mda_positions.tolist() == molly_positions.tolist()
+    print(f"\tOK!\tSkip frames for {mda_reader.n_frames} frames.")
+
+def test_skip_and_tell(path):
+    """Compare the file positions given by tell() and skip_frame()."""
+
+    print("TEST: skip and tell")
+    offsets = []
+    reader = molly.XTCReader(path)
+
+    while (offset := reader.skip_frame()) is not None:
+        offsets.append(offset)
+    
+    reader.close()
+    reader = molly.XTCReader(path)
+    for offset in offsets:
+        reader.pop_frame()
+        assert offset == reader.tell()
+
+    reader.close()
+    print("\tOK!\tSkip and tell.")
+
 path = "../../tests/trajectories/trajectory_smol.xtc"
 full_mda_frames, _ = read_all(path)
 
@@ -254,3 +345,10 @@ test_write_from_scratch()
 
 # XTC Reader frame reference semantics
 test_reference_semantics(path)
+
+# Appending with XTC Writer
+test_append()
+
+# Test skip and tell
+test_skipping_frames(path)
+test_skip_and_tell(path)
