@@ -92,7 +92,7 @@ impl FromPyObject<'_> for AtomSelection {
 struct XTCReader {
     // None if the reader was closed
     inner: Option<molly::XTCReader<std::fs::File>>,
-    // None before any frames were read
+    // None before any frames were read, or after all frames were read
     frame: Option<Py<Frame>>,
     buffered: bool,
 }
@@ -166,9 +166,19 @@ impl XTCReader {
     }
 
     /// Read a single frame into the `frame` field of the `XTCReader`.
+    ///
+    /// If all frames were already read, will set the `frame` field to None.
     fn read_frame(&mut self, py: Python) -> io::Result<()> {
         let mut frame = Frame::default();
-        self.inner()?.read_frame(&mut frame.inner)?;
+        if let Err(err) = self.inner()?.read_frame(&mut frame.inner) {
+            return match err.kind() {
+                io::ErrorKind::UnexpectedEof => {
+                    self.frame = None;
+                    Ok(())
+                }
+                _ => Err(err),
+            };
+        }
         self.frame = Some(Py::new(py, frame)?);
         Ok(())
     }
@@ -176,9 +186,11 @@ impl XTCReader {
     /// Read a single frame and return it.
     ///
     /// Calls `read_frame` internally and returns the frame immediately.
-    fn pop_frame(&mut self, py: Python) -> io::Result<Py<Frame>> {
+    ///
+    /// If all frames were already read, returns None.
+    fn pop_frame(&mut self, py: Python) -> io::Result<Option<Py<Frame>>> {
         self.read_frame(py)?;
-        Ok(self.frame.as_ref().unwrap().clone_ref(py))
+        Ok((&self.frame).as_ref().map(|x| x.clone_ref(py)))
     }
 
     /// Read frames according to the selections and return the frames as a list.
