@@ -90,9 +90,21 @@ impl FromPyObject<'_> for AtomSelection {
 /// A fast XTC trajectory reader.
 #[pyclass]
 struct XTCReader {
-    inner: molly::XTCReader<std::fs::File>,
+    // None if the reader was closed
+    inner: Option<molly::XTCReader<std::fs::File>>,
+    // None before any frames were read
     frame: Option<Py<Frame>>,
     buffered: bool,
+}
+
+impl XTCReader {
+    /// Return a mutable reference to inner, or a Python exception if it is None.
+    fn inner(&mut self) -> io::Result<&mut molly::XTCReader<std::fs::File>> {
+        match &mut self.inner {
+            Some(inner) => Ok(inner),
+            None => Err(io::Error::new(io::ErrorKind::Other, "Reader is closed")),
+        }
+    }
 }
 
 #[pymethods]
@@ -103,7 +115,7 @@ impl XTCReader {
     fn open(path: PathBuf, buffered: bool) -> io::Result<Self> {
         let inner = molly::XTCReader::open(path)?;
         Ok(Self {
-            inner,
+            inner: Some(inner),
             frame: None,
             buffered,
         })
@@ -137,18 +149,20 @@ impl XTCReader {
     /// the initial reader position, call `XTCReader.home` before calling this function.
     #[pyo3(signature = (until=None))]
     fn determine_offsets(&mut self, until: Option<usize>) -> io::Result<Vec<u64>> {
-        self.inner.determine_offsets(until).map(|l| l.to_vec())
+        self.inner()?.determine_offsets(until).map(|l| l.to_vec())
     }
 
     /// Returns the frame sizes in bytes of this `XTCReader`.
     #[pyo3(signature = (until=None))]
     fn determine_frame_sizes(&mut self, until: Option<usize>) -> io::Result<Vec<u64>> {
-        self.inner.determine_frame_sizes(until).map(|l| l.to_vec())
+        self.inner()?
+            .determine_frame_sizes(until)
+            .map(|l| l.to_vec())
     }
 
     /// Reset the reading head to the start of the file.
     fn home(&mut self) -> PyResult<()> {
-        Ok(self.inner.home()?)
+        Ok(self.inner()?.home()?)
     }
 
     /// Read a single frame into the `frame` field of the `XTCReader`.
@@ -156,8 +170,9 @@ impl XTCReader {
         let mut frame = self
             .frame
             .get_or_insert(Py::new(py, Frame::default())?)
-            .borrow_mut(py);
-        self.inner.read_frame(&mut frame.inner)
+            .clone_ref(py);
+        self.inner()?.read_frame(&mut frame.borrow_mut(py).inner)?;
+        Ok(())
     }
 
     /// Read a single frame and return a copy.
@@ -185,13 +200,14 @@ impl XTCReader {
         let atom_selection = atom_selection.unwrap_or_default().into();
         match self.buffered {
             true => {
-                self.inner
+                self.inner()?
                     .read_frames::<true>(&mut frames, &frame_selection, &atom_selection)?
             }
-            false => {
-                self.inner
-                    .read_frames::<false>(&mut frames, &frame_selection, &atom_selection)?
-            }
+            false => self.inner()?.read_frames::<false>(
+                &mut frames,
+                &frame_selection,
+                &atom_selection,
+            )?,
         };
 
         Ok(frames.into_iter().map(|frame| frame.into()).collect())
@@ -276,7 +292,7 @@ impl XTCReader {
         let until = frame_selection
             .as_ref()
             .and_then(|FrameSelection(selection)| selection.until());
-        let offsets = self.inner.determine_offsets(until)?;
+        let offsets = self.inner()?.determine_offsets(until)?;
         let offsets = offsets.iter().enumerate().filter_map(|(idx, offset)| {
             if let Some(FrameSelection(selection)) = &frame_selection {
                 match selection.is_included(idx) {
@@ -298,11 +314,14 @@ impl XTCReader {
             py.check_signals()?;
             match self.buffered {
                 true => {
-                    self.inner
-                        .read_frame_at_offset::<true>(&mut frame, offset, &atom_selection)?;
+                    self.inner()?.read_frame_at_offset::<true>(
+                        &mut frame,
+                        offset,
+                        &atom_selection,
+                    )?;
                 }
                 false => {
-                    self.inner.read_frame_at_offset::<false>(
+                    self.inner()?.read_frame_at_offset::<false>(
                         &mut frame,
                         offset,
                         &atom_selection,
@@ -336,6 +355,11 @@ impl XTCReader {
         }
 
         Ok(true)
+    }
+
+    fn close(&mut self) -> io::Result<()> {
+        self.inner.take();
+        Ok(())
     }
 }
 
