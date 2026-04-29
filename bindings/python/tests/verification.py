@@ -43,6 +43,7 @@ def read_all(path):
         mda_frames.append(mda_positions.copy())
         molly_frames.append(molly_positions.copy())
 
+    molly_reader.close()
     return mda_frames, molly_frames
 
 
