@@ -167,15 +167,13 @@ impl XTCReader {
 
     /// Read a single frame into the `frame` field of the `XTCReader`.
     fn read_frame(&mut self, py: Python) -> io::Result<()> {
-        let mut frame = self
-            .frame
-            .get_or_insert(Py::new(py, Frame::default())?)
-            .clone_ref(py);
-        self.inner()?.read_frame(&mut frame.borrow_mut(py).inner)?;
+        let mut frame = Frame::default();
+        self.inner()?.read_frame(&mut frame.inner)?;
+        self.frame = Some(Py::new(py, frame)?);
         Ok(())
     }
 
-    /// Read a single frame and return a copy.
+    /// Read a single frame and return it.
     ///
     /// Calls `read_frame` internally and returns the frame immediately.
     fn pop_frame(&mut self, py: Python) -> io::Result<Py<Frame>> {

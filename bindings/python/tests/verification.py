@@ -212,18 +212,22 @@ def test_reference_semantics(path):
     reader = molly.XTCReader(path)
     # read 1 frame
     f = reader.pop_frame()
+    # overwrite it through the reference
+    # first frame in this particular file is at MD step 0
     assert f.step == 0
+    f.step = 5
+    # reader.frame and anything returned by pop_frame() and read_frame()
+    # should be a reference
+    assert reader.frame.step == 5
     # read another frame
     reader.read_frame()
-    # checks whether f is a reference to a single buffered "frame" that
-    # can be mutated by the reader
-    assert f.step > 0
-    # mutate f manually and check if it updated reader.f
-    chosen_number = f.step + 0xabc
-    f.step = chosen_number
-    assert reader.frame.step == chosen_number
-    print(f"\tOK!")
-    print(f"\tXTCReader.frame has reference semantics")
+    # f should remain a frame containing the old positions
+    assert f.step == 5
+    f.step = 0
+    # reader.frame should be a new frame
+    assert reader.frame.step > 0
+    print("\tOK!")
+    print("\tXTCReader.frame has reference semantics")
 
 
 path = "../../tests/trajectories/trajectory_smol.xtc"
