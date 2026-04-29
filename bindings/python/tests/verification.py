@@ -43,6 +43,7 @@ def read_all(path):
         mda_frames.append(mda_positions.copy())
         molly_frames.append(molly_positions.copy())
 
+    assert molly_reader.pop_frame() is None
     molly_reader.close()
     return mda_frames, molly_frames
 
@@ -190,6 +191,7 @@ def test_write_from_scratch():
     read_positions = np.empty((n_frames, n_atoms, 3), dtype=np.float32)
     for i in range(n_frames):
         read_positions[i, :, :] = reader.pop_frame().positions
+    assert reader.pop_frame() is None
 
     for i in range(n_frames):
         assert np.allclose(
