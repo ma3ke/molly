@@ -91,9 +91,9 @@ impl FromPyObject<'_> for AtomSelection {
 /// A fast XTC trajectory reader.
 #[pyclass]
 struct XTCReader {
-    // None if the reader was closed
+    // `None` if the reader was closed.
     inner: Option<molly::XTCReader<std::fs::File>>,
-    // None before any frames were read, or after all frames were read
+    // `None` before any frames were read, or after all frames were read.
     frame: Option<Py<Frame>>,
     buffered: bool,
 }
