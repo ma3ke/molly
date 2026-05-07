@@ -31,9 +31,11 @@ impl From<AtomSelection> for selection::AtomSelection {
     }
 }
 
-impl FromPyObject<'_> for FrameSelection {
-    fn extract_bound(ob: &Bound<'_, PyAny>) -> PyResult<Self> {
-        if let Ok(selection) = ob.downcast::<PySlice>() {
+impl FromPyObject<'_, '_> for FrameSelection {
+    type Error = PyErr;
+
+    fn extract(ob: Borrowed<'_, '_, PyAny>) -> PyResult<Self> {
+        if let Ok(selection) = ob.cast::<PySlice>() {
             // TODO: This getattr business seems silly, but maybe it's necessary?
             let start = selection.getattr("start")?.extract().ok();
             let end = selection.getattr("stop")?.extract().ok();
@@ -42,7 +44,7 @@ impl FromPyObject<'_> for FrameSelection {
             return Ok(FrameSelection(selection::FrameSelection::Range(range)));
         }
 
-        if let Ok(indices) = ob.downcast::<PyList>().map_err(PyErr::from).and_then(|it| {
+        if let Ok(indices) = ob.cast::<PyList>().map_err(PyErr::from).and_then(|it| {
             it.iter()
                 .map(|i| i.extract::<usize>())
                 .collect::<PyResult<Vec<usize>>>()
@@ -52,7 +54,7 @@ impl FromPyObject<'_> for FrameSelection {
             ));
         }
 
-        if let Ok(it) = ob.downcast::<PyIterator>() {
+        if let Ok(it) = ob.cast::<PyIterator>() {
             if let Ok(indices) = it.extract::<Vec<usize>>() {
                 return Ok(FrameSelection(
                     selection::FrameSelection::framelist_from_iter(indices),
@@ -67,13 +69,15 @@ impl FromPyObject<'_> for FrameSelection {
     }
 }
 
-impl FromPyObject<'_> for AtomSelection {
-    fn extract_bound(ob: &Bound<'_, PyAny>) -> PyResult<Self> {
+impl FromPyObject<'_, '_> for AtomSelection {
+    type Error = PyErr;
+
+    fn extract(ob: Borrowed<'_, '_, PyAny>) -> PyResult<Self> {
         if let Ok(until) = ob.extract::<u32>() {
             return Ok(AtomSelection(selection::AtomSelection::Until(until)));
         }
 
-        if let Ok(list) = ob.downcast::<PyList>() {
+        if let Ok(list) = ob.cast::<PyList>() {
             if let Ok(bools) = list.extract::<Vec<bool>>() {
                 return Ok(AtomSelection(selection::AtomSelection::Mask(bools)));
             }
@@ -443,7 +447,7 @@ impl XTCWriter {
 /// A single trajectory frame.
 ///
 /// All distances are given in nanometers.
-#[pyclass]
+#[pyclass(skip_from_py_object)]
 #[derive(Default, Clone)]
 struct Frame {
     inner: molly::Frame,

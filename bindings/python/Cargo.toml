@@ -8,6 +8,6 @@ name = "_molly"
 crate-type = ["cdylib"]
 
 [dependencies]
-pyo3 = { version = "0.24.0", features = ["extension-module"] }
+pyo3 = { version = "0.28.3", features = ["extension-module"] }
 molly = { path = "../.." }
-numpy = "0.24.0"
+numpy = "0.28.0"
