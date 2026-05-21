@@ -181,7 +181,7 @@ def test_write_from_scratch():
         f.positions = frame.flatten()
         f.time = i * 0.02
         f.step = i
-        # precision intentionally left blank
+        # Precision intentionally left blank.
         writer.write_frame(f)
     writer.close()
     print(f"\tWrote {n_frames} frames {n_atoms} atoms in {time.time() - start:.3f} s")
@@ -213,21 +213,20 @@ def test_reference_semantics(path):
     """Tests whether XTCReader's buffered frame has reference semantics."""
     print("TEST: XTCReader.frame reference semantics")
     reader = molly.XTCReader(path)
-    # read 1 frame
+    # Read 1 frame.
     f = reader.pop_frame()
-    # overwrite it through the reference
-    # first frame in this particular file is at MD step 0
+    # Overwrite it through the reference.
+    # (The first frame in this particular file is at MD step 0.)
     assert f.step == 0
     f.step = 5
-    # reader.frame and anything returned by pop_frame() and read_frame()
-    # should be a reference
+    # `reader.frame` and anything returned by pop_frame() and read_frame() should be a reference.
     assert reader.frame.step == 5
-    # read another frame
+    # Read another frame.
     reader.read_frame()
-    # f should remain a frame containing the old positions
+    # `f` should remain a frame containing the old positions.
     assert f.step == 5
     f.step = 0
-    # reader.frame should be a new frame
+    # `reader.frame` should be a new frame.
     assert reader.frame.step > 0
     print("\tOK!")
     print("\tXTCReader.frame has reference semantics")
@@ -258,7 +257,7 @@ def test_append():
         f.positions = frame.flatten()
         f.time = i * 0.02
         f.step = i
-        # precision intentionally left blank
+        # Precision intentionally left blank.
         writer.write_frame(f)
         if i > 0 and i % append_every == 0:
             writer.close()
