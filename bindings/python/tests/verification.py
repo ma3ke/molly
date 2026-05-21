@@ -1,5 +1,6 @@
 import tempfile
 import time
+import os
 from sys import stdout
 
 import MDAnalysis as MDA
@@ -323,32 +324,66 @@ def test_skip_and_tell(path):
     reader.close()
     print("\tOK!\tSkip and tell.")
 
-path = "../../tests/trajectories/trajectory_smol.xtc"
-full_mda_frames, _ = read_all(path)
+def test_read_iter(path):
+    """Compare the method .pop_frame() with the iterator .frames() and method .read_frames()."""
 
-# Frame slices.
-read_test(path, full_mda_frames, slice(None, None))
-read_test(path, full_mda_frames, slice(None, 20))
-read_test(path, full_mda_frames, slice(25, 50))
-read_test(path, full_mda_frames, slice(None, None, 2))
-read_test(path, full_mda_frames, slice(None, 20, 2))
-read_test(path, full_mda_frames, slice(25, 50, 2))
-read_test(path, full_mda_frames, slice(None, None, 3))
-read_test(path, full_mda_frames, slice(None, 20, 3))
-read_test(path, full_mda_frames, slice(25, 50, 3))
+    print("TEST: read iter")
+    reader = molly.XTCReader(path)
 
-# Write roundtrip test.
-test_write_roundtrip(path)
+    frames_pop = []
+    while (f := reader.pop_frame()):
+        frames_pop.append(f)
 
-# Write from scratch test
-test_write_from_scratch()
+    reader.home()
+    frames_iter = list(reader.frames())
 
-# XTC Reader frame reference semantics
-test_reference_semantics(path)
+    reader.home()
+    frames_read = reader.read_frames()
 
-# Appending with XTC Writer
-test_append()
+    assert len(frames_pop) == len(frames_iter) == len(frames_read), (
+        f"len pop: {len(frames_pop)}\n"
+        + f"len iter: {len(frames_iter)}\n"
+        + f"len read: {len(frames_read)}"
+    )
+    for f1, f2, f3 in zip(frames_pop, frames_iter, frames_read):
+        assert np.allclose(f1.positions, f2.positions)
+        assert np.allclose(f1.positions, f3.positions)
+        assert np.allclose(f1.box, f2.box)
+        assert np.allclose(f1.box, f3.box)
+        assert np.isclose(f1.time, f2.time)
+        assert np.isclose(f1.time, f2.time)
+        assert f1.step == f2.step == f3.step
 
-# Test skip and tell
-test_skipping_frames(path)
-test_skip_and_tell(path)
+    reader.close()
+    print("\tOK!\tRead iter.")
+
+if __name__ == "__main__":
+    # Chdir to /bindings/python/tests.
+    os.chdir(os.path.dirname(os.path.realpath(__file__)))
+
+    path = "../../../tests/trajectories/trajectory_smol.xtc"
+    full_mda_frames, _ = read_all(path)
+
+    # Reader tests, with different frame slices.
+    read_test(path, full_mda_frames, slice(None, None))
+    read_test(path, full_mda_frames, slice(None, 20))
+    read_test(path, full_mda_frames, slice(25, 50))
+    read_test(path, full_mda_frames, slice(None, None, 2))
+    read_test(path, full_mda_frames, slice(None, 20, 2))
+    read_test(path, full_mda_frames, slice(25, 50, 2))
+    read_test(path, full_mda_frames, slice(None, None, 3))
+    read_test(path, full_mda_frames, slice(None, 20, 3))
+    read_test(path, full_mda_frames, slice(25, 50, 3))
+
+    # Reader tests, additional QoL methods.
+    test_skipping_frames(path)
+    test_skip_and_tell(path)
+    test_read_iter(path)
+
+    # Reader tests, semantics.
+    test_reference_semantics(path)
+
+    # Writer tests.
+    test_write_roundtrip(path)
+    test_write_from_scratch()
+    test_append()
