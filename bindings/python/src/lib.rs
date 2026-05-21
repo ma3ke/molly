@@ -92,6 +92,22 @@ impl FromPyObject<'_, '_> for AtomSelection {
     }
 }
 
+#[pyclass]
+struct XTCFrames {
+    inner: Py<XTCReader>,
+}
+
+#[pymethods]
+impl XTCFrames {
+    fn __iter__(self_: PyRef<'_, Self>) -> PyRef<'_, Self> {
+        self_
+    }
+
+    fn __next__(&mut self, py: Python) -> io::Result<Option<Py<Frame>>> {
+        self.inner.borrow_mut(py).pop_frame(py)
+    }
+}
+
 /// A fast XTC trajectory reader.
 #[pyclass]
 struct XTCReader {
@@ -163,6 +179,13 @@ impl XTCReader {
         self.inner()?
             .determine_frame_sizes(until)
             .map(|l| l.to_vec())
+    }
+
+    /// Return an iterator over the remaining frames.
+    fn frames(self_: PyRef<'_, Self>) -> XTCFrames {
+        XTCFrames {
+            inner: self_.into(),
+        }
     }
 
     /// Reset the reading head to the start of the file.
