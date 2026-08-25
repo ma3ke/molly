@@ -10,7 +10,7 @@ use numpy::ndarray::{Array, Axis};
 use numpy::{IntoPyArray, Ix2, PyArray, PyReadwriteArrayDyn, PyUntypedArrayMethods};
 use pyo3::exceptions::{PyTypeError, PyValueError};
 use pyo3::prelude::*;
-use pyo3::types::{PyIterator, PyList, PySlice};
+use pyo3::types::{PyIterator, PyList, PySlice, PyType};
 
 type BoxVec = [[f32; 3]; 3];
 
@@ -140,6 +140,21 @@ impl XTCReader {
             frame: None,
             buffered,
         })
+    }
+
+    fn __enter__(self_: PyRef<'_, Self>) -> PyRef<'_, Self> {
+        self_
+    }
+
+    fn __exit__(
+        &mut self,
+        _exc_type: Option<&Bound<'_, PyType>>,
+        _exc_val: Option<&Bound<'_, PyAny>>,
+        _exc_tb: Option<&Bound<'_, PyAny>>,
+    ) -> PyResult<bool> {
+        self.close()?;
+        // Do not suppress exceptions.
+        Ok(false)
     }
 
     #[getter]
@@ -448,6 +463,21 @@ impl XTCWriter {
         Ok(Self {
             inner: Some(molly::XTCWriter::new(writer)),
         })
+    }
+
+    fn __enter__(self_: PyRef<'_, Self>) -> PyRef<'_, Self> {
+        self_
+    }
+
+    fn __exit__(
+        &mut self,
+        _exc_type: Option<&Bound<'_, PyType>>,
+        _exc_val: Option<&Bound<'_, PyAny>>,
+        _exc_tb: Option<&Bound<'_, PyAny>>,
+    ) -> PyResult<bool> {
+        self.close()?;
+        // Do not suppress exceptions.
+        Ok(false)
     }
 
     /// Write a frame to the XTC file.

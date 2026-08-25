@@ -151,7 +151,6 @@ def test_write_roundtrip(path):
             f"Frame {i}: positions mismatch"
 
     # Clean up.
-    import os
     os.unlink(tmp_path)
 
     print(f"\tOK!\t\tRoundtrip verified for {nframes} frames.")
@@ -204,7 +203,6 @@ def test_write_from_scratch():
     print(f"\tRead {n_frames} frames {n_atoms} atoms in {time.time() - start:.3f} s")
 
     # Clean up.
-    import os
     os.unlink(tmp_path)
 
     print(f"\tOK!\t\tWrite from scratch for {n_frames} frames.")
@@ -283,7 +281,6 @@ def test_append():
     print(f"\tRead {n_frames} frames {n_atoms} atoms in {time.time() - start:.3f} s")
 
     # Clean up.
-    import os
     os.unlink(tmp_path)
 
     print(f"\tOK!\tAppend for {n_frames} frames.")
@@ -356,12 +353,102 @@ def test_read_iter(path):
     reader.close()
     print("\tOK!\tRead iter.")
 
+def test_context_manager(path):
+    """Test using the context manager."""
+    print("TEST: context manager")
+
+    # Test the reader's context manager.
+    with molly.XTCReader(path) as reader:
+
+        frames_pop = []
+        while (f := reader.pop_frame()):
+            frames_pop.append(f)
+
+        reader.home()
+        frames_iter = list(reader.frames())
+
+        reader.home()
+        frames_read = reader.read_frames()
+
+        assert len(frames_pop) == len(frames_iter) == len(frames_read), (
+            f"len pop: {len(frames_pop)}\n"
+            + f"len iter: {len(frames_iter)}\n"
+            + f"len read: {len(frames_read)}"
+        )
+        for f1, f2, f3 in zip(frames_pop, frames_iter, frames_read):
+            assert np.allclose(f1.positions, f2.positions)
+            assert np.allclose(f1.positions, f3.positions)
+            assert np.allclose(f1.box, f2.box)
+            assert np.allclose(f1.box, f3.box)
+            assert np.isclose(f1.time, f2.time)
+            assert np.isclose(f1.time, f2.time)
+            assert f1.step == f2.step == f3.step
+
+    try:
+        reader.tell()
+        # `reader.tell()` should throw OSError 'Reader is closed'.
+        # (The context manager should have closed it by now.)
+        assert False
+    except OSError:
+        # We expect this exception.
+        pass
+    except Exception:
+        # No other exception should occur.
+        assert False
+
+    # Test the writer's context manager.
+    with tempfile.NamedTemporaryFile(suffix=".xtc", delete=False) as tmp:
+        tmp_path = tmp.name
+    with molly.XTCWriter(tmp_path) as writer:
+        with tempfile.NamedTemporaryFile(suffix=".xtc", delete=False) as tmp:
+            tmp_path = tmp.name
+
+        start = time.time()
+        generator = np.random.default_rng(seed=42)
+        n_atoms = 1000
+        n_frames = 1000
+        positions = generator.random((n_frames, n_atoms, 3), dtype=np.float32) * 5.
+        box = np.array([
+            [5., 0., 0.],
+            [0., 5., 0.],
+            [0., 0., 5.]
+        ], dtype=np.float32)
+        for i, frame in enumerate(positions):
+            f = molly.Frame()
+            f.box = box
+            f.positions = frame.flatten()
+            f.time = i * 0.02
+            f.step = i
+            writer.write_frame(f)
+
+    try:
+        f = molly.Frame()
+        f.box = box
+        f.positions = frame.flatten()
+        f.time = i * 0.02
+        f.step = i
+        writer.write_frame(f)
+        # `writer.write_frame(f)` should throw OSError 'Reader is closed'.
+        # (The context manager should have closed it by now.)
+        assert False
+    except OSError:
+        # We expect this exception.
+        pass
+    except Exception:
+        # No other exception should occur.
+        assert False
+
+    os.unlink(tmp_path)
+
+    print("\tOK!\tcontext manager.")
+
 if __name__ == "__main__":
     # Chdir to /bindings/python/tests.
     os.chdir(os.path.dirname(os.path.realpath(__file__)))
 
     path = "../../../tests/trajectories/trajectory_smol.xtc"
     full_mda_frames, _ = read_all(path)
+    print()
 
     # Reader tests, with different frame slices.
     read_test(path, full_mda_frames, slice(None, None))
@@ -378,6 +465,7 @@ if __name__ == "__main__":
     test_skipping_frames(path)
     test_skip_and_tell(path)
     test_read_iter(path)
+    test_context_manager(path)
 
     # Reader tests, semantics.
     test_reference_semantics(path)
