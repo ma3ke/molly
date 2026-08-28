@@ -1,5 +1,6 @@
 import tempfile
 import time
+import os
 from sys import stdout
 
 import MDAnalysis as MDA
@@ -150,7 +151,6 @@ def test_write_roundtrip(path):
             f"Frame {i}: positions mismatch"
 
     # Clean up.
-    import os
     os.unlink(tmp_path)
 
     print(f"\tOK!\t\tRoundtrip verified for {nframes} frames.")
@@ -180,7 +180,7 @@ def test_write_from_scratch():
         f.positions = frame.flatten()
         f.time = i * 0.02
         f.step = i
-        # precision intentionally left blank
+        # Precision intentionally left blank.
         writer.write_frame(f)
     writer.close()
     print(f"\tWrote {n_frames} frames {n_atoms} atoms in {time.time() - start:.3f} s")
@@ -203,7 +203,6 @@ def test_write_from_scratch():
     print(f"\tRead {n_frames} frames {n_atoms} atoms in {time.time() - start:.3f} s")
 
     # Clean up.
-    import os
     os.unlink(tmp_path)
 
     print(f"\tOK!\t\tWrite from scratch for {n_frames} frames.")
@@ -212,21 +211,20 @@ def test_reference_semantics(path):
     """Tests whether XTCReader's buffered frame has reference semantics."""
     print("TEST: XTCReader.frame reference semantics")
     reader = molly.XTCReader(path)
-    # read 1 frame
+    # Read 1 frame.
     f = reader.pop_frame()
-    # overwrite it through the reference
-    # first frame in this particular file is at MD step 0
+    # Overwrite it through the reference.
+    # (The first frame in this particular file is at MD step 0.)
     assert f.step == 0
     f.step = 5
-    # reader.frame and anything returned by pop_frame() and read_frame()
-    # should be a reference
+    # `reader.frame` and anything returned by pop_frame() and read_frame() should be a reference.
     assert reader.frame.step == 5
-    # read another frame
+    # Read another frame.
     reader.read_frame()
-    # f should remain a frame containing the old positions
+    # `f` should remain a frame containing the old positions.
     assert f.step == 5
     f.step = 0
-    # reader.frame should be a new frame
+    # `reader.frame` should be a new frame.
     assert reader.frame.step > 0
     print("\tOK!")
     print("\tXTCReader.frame has reference semantics")
@@ -257,7 +255,7 @@ def test_append():
         f.positions = frame.flatten()
         f.time = i * 0.02
         f.step = i
-        # precision intentionally left blank
+        # Precision intentionally left blank.
         writer.write_frame(f)
         if i > 0 and i % append_every == 0:
             writer.close()
@@ -283,7 +281,6 @@ def test_append():
     print(f"\tRead {n_frames} frames {n_atoms} atoms in {time.time() - start:.3f} s")
 
     # Clean up.
-    import os
     os.unlink(tmp_path)
 
     print(f"\tOK!\tAppend for {n_frames} frames.")
@@ -323,32 +320,157 @@ def test_skip_and_tell(path):
     reader.close()
     print("\tOK!\tSkip and tell.")
 
-path = "../../tests/trajectories/trajectory_smol.xtc"
-full_mda_frames, _ = read_all(path)
+def test_read_iter(path):
+    """Compare the method .pop_frame() with the iterator .frames() and method .read_frames()."""
 
-# Frame slices.
-read_test(path, full_mda_frames, slice(None, None))
-read_test(path, full_mda_frames, slice(None, 20))
-read_test(path, full_mda_frames, slice(25, 50))
-read_test(path, full_mda_frames, slice(None, None, 2))
-read_test(path, full_mda_frames, slice(None, 20, 2))
-read_test(path, full_mda_frames, slice(25, 50, 2))
-read_test(path, full_mda_frames, slice(None, None, 3))
-read_test(path, full_mda_frames, slice(None, 20, 3))
-read_test(path, full_mda_frames, slice(25, 50, 3))
+    print("TEST: read iter")
+    reader = molly.XTCReader(path)
 
-# Write roundtrip test.
-test_write_roundtrip(path)
+    frames_pop = []
+    while (f := reader.pop_frame()):
+        frames_pop.append(f)
 
-# Write from scratch test
-test_write_from_scratch()
+    reader.home()
+    frames_iter = list(reader.frames())
 
-# XTC Reader frame reference semantics
-test_reference_semantics(path)
+    reader.home()
+    frames_read = reader.read_frames()
 
-# Appending with XTC Writer
-test_append()
+    assert len(frames_pop) == len(frames_iter) == len(frames_read), (
+        f"len pop: {len(frames_pop)}\n"
+        + f"len iter: {len(frames_iter)}\n"
+        + f"len read: {len(frames_read)}"
+    )
+    for f1, f2, f3 in zip(frames_pop, frames_iter, frames_read):
+        assert np.allclose(f1.positions, f2.positions)
+        assert np.allclose(f1.positions, f3.positions)
+        assert np.allclose(f1.box, f2.box)
+        assert np.allclose(f1.box, f3.box)
+        assert np.isclose(f1.time, f2.time)
+        assert np.isclose(f1.time, f2.time)
+        assert f1.step == f2.step == f3.step
 
-# Test skip and tell
-test_skipping_frames(path)
-test_skip_and_tell(path)
+    reader.close()
+    print("\tOK!\tRead iter.")
+
+def test_context_manager(path):
+    """Test using the context manager."""
+    print("TEST: context manager")
+
+    # Test the reader's context manager.
+    with molly.XTCReader(path) as reader:
+
+        frames_pop = []
+        while (f := reader.pop_frame()):
+            frames_pop.append(f)
+
+        reader.home()
+        frames_iter = list(reader.frames())
+
+        reader.home()
+        frames_read = reader.read_frames()
+
+        assert len(frames_pop) == len(frames_iter) == len(frames_read), (
+            f"len pop: {len(frames_pop)}\n"
+            + f"len iter: {len(frames_iter)}\n"
+            + f"len read: {len(frames_read)}"
+        )
+        for f1, f2, f3 in zip(frames_pop, frames_iter, frames_read):
+            assert np.allclose(f1.positions, f2.positions)
+            assert np.allclose(f1.positions, f3.positions)
+            assert np.allclose(f1.box, f2.box)
+            assert np.allclose(f1.box, f3.box)
+            assert np.isclose(f1.time, f2.time)
+            assert np.isclose(f1.time, f2.time)
+            assert f1.step == f2.step == f3.step
+
+    try:
+        reader.tell()
+        # `reader.tell()` should throw OSError 'Reader is closed'.
+        # (The context manager should have closed it by now.)
+        assert False
+    except OSError:
+        # We expect this exception.
+        pass
+    except Exception:
+        # No other exception should occur.
+        assert False
+
+    # Test the writer's context manager.
+    with tempfile.NamedTemporaryFile(suffix=".xtc", delete=False) as tmp:
+        tmp_path = tmp.name
+    with molly.XTCWriter(tmp_path) as writer:
+        with tempfile.NamedTemporaryFile(suffix=".xtc", delete=False) as tmp:
+            tmp_path = tmp.name
+
+        start = time.time()
+        generator = np.random.default_rng(seed=42)
+        n_atoms = 1000
+        n_frames = 1000
+        positions = generator.random((n_frames, n_atoms, 3), dtype=np.float32) * 5.
+        box = np.array([
+            [5., 0., 0.],
+            [0., 5., 0.],
+            [0., 0., 5.]
+        ], dtype=np.float32)
+        for i, frame in enumerate(positions):
+            f = molly.Frame()
+            f.box = box
+            f.positions = frame.flatten()
+            f.time = i * 0.02
+            f.step = i
+            writer.write_frame(f)
+
+    try:
+        f = molly.Frame()
+        f.box = box
+        f.positions = frame.flatten()
+        f.time = i * 0.02
+        f.step = i
+        writer.write_frame(f)
+        # `writer.write_frame(f)` should throw OSError 'Reader is closed'.
+        # (The context manager should have closed it by now.)
+        assert False
+    except OSError:
+        # We expect this exception.
+        pass
+    except Exception:
+        # No other exception should occur.
+        assert False
+
+    os.unlink(tmp_path)
+
+    print("\tOK!\tcontext manager.")
+
+if __name__ == "__main__":
+    # Chdir to /bindings/python/tests.
+    os.chdir(os.path.dirname(os.path.realpath(__file__)))
+
+    path = "../../../tests/trajectories/trajectory_smol.xtc"
+    full_mda_frames, _ = read_all(path)
+    print()
+
+    # Reader tests, with different frame slices.
+    read_test(path, full_mda_frames, slice(None, None))
+    read_test(path, full_mda_frames, slice(None, 20))
+    read_test(path, full_mda_frames, slice(25, 50))
+    read_test(path, full_mda_frames, slice(None, None, 2))
+    read_test(path, full_mda_frames, slice(None, 20, 2))
+    read_test(path, full_mda_frames, slice(25, 50, 2))
+    read_test(path, full_mda_frames, slice(None, None, 3))
+    read_test(path, full_mda_frames, slice(None, 20, 3))
+    read_test(path, full_mda_frames, slice(25, 50, 3))
+
+    # Reader tests, additional QoL methods.
+    test_skipping_frames(path)
+    test_skip_and_tell(path)
+    test_read_iter(path)
+    test_context_manager(path)
+
+    # Reader tests, semantics.
+    test_reference_semantics(path)
+
+    # Writer tests.
+    test_write_roundtrip(path)
+    test_write_from_scratch()
+    test_append()

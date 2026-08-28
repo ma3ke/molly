@@ -10,7 +10,7 @@ use numpy::ndarray::{Array, Axis};
 use numpy::{IntoPyArray, Ix2, PyArray, PyReadwriteArrayDyn, PyUntypedArrayMethods};
 use pyo3::exceptions::{PyTypeError, PyValueError};
 use pyo3::prelude::*;
-use pyo3::types::{PyIterator, PyList, PySlice};
+use pyo3::types::{PyIterator, PyList, PySlice, PyType};
 
 type BoxVec = [[f32; 3]; 3];
 
@@ -31,9 +31,11 @@ impl From<AtomSelection> for selection::AtomSelection {
     }
 }
 
-impl FromPyObject<'_> for FrameSelection {
-    fn extract_bound(ob: &Bound<'_, PyAny>) -> PyResult<Self> {
-        if let Ok(selection) = ob.downcast::<PySlice>() {
+impl FromPyObject<'_, '_> for FrameSelection {
+    type Error = PyErr;
+
+    fn extract(ob: Borrowed<'_, '_, PyAny>) -> PyResult<Self> {
+        if let Ok(selection) = ob.cast::<PySlice>() {
             // TODO: This getattr business seems silly, but maybe it's necessary?
             let start = selection.getattr("start")?.extract().ok();
             let end = selection.getattr("stop")?.extract().ok();
@@ -42,7 +44,7 @@ impl FromPyObject<'_> for FrameSelection {
             return Ok(FrameSelection(selection::FrameSelection::Range(range)));
         }
 
-        if let Ok(indices) = ob.downcast::<PyList>().map_err(PyErr::from).and_then(|it| {
+        if let Ok(indices) = ob.cast::<PyList>().map_err(PyErr::from).and_then(|it| {
             it.iter()
                 .map(|i| i.extract::<usize>())
                 .collect::<PyResult<Vec<usize>>>()
@@ -52,7 +54,7 @@ impl FromPyObject<'_> for FrameSelection {
             ));
         }
 
-        if let Ok(it) = ob.downcast::<PyIterator>() {
+        if let Ok(it) = ob.cast::<PyIterator>() {
             if let Ok(indices) = it.extract::<Vec<usize>>() {
                 return Ok(FrameSelection(
                     selection::FrameSelection::framelist_from_iter(indices),
@@ -67,13 +69,15 @@ impl FromPyObject<'_> for FrameSelection {
     }
 }
 
-impl FromPyObject<'_> for AtomSelection {
-    fn extract_bound(ob: &Bound<'_, PyAny>) -> PyResult<Self> {
+impl FromPyObject<'_, '_> for AtomSelection {
+    type Error = PyErr;
+
+    fn extract(ob: Borrowed<'_, '_, PyAny>) -> PyResult<Self> {
         if let Ok(until) = ob.extract::<u32>() {
             return Ok(AtomSelection(selection::AtomSelection::Until(until)));
         }
 
-        if let Ok(list) = ob.downcast::<PyList>() {
+        if let Ok(list) = ob.cast::<PyList>() {
             if let Ok(bools) = list.extract::<Vec<bool>>() {
                 return Ok(AtomSelection(selection::AtomSelection::Mask(bools)));
             }
@@ -85,6 +89,22 @@ impl FromPyObject<'_> for AtomSelection {
         }
 
         Err(PyTypeError::new_err("Cannot select atoms with this type"))
+    }
+}
+
+#[pyclass]
+struct XTCFrames {
+    inner: Py<XTCReader>,
+}
+
+#[pymethods]
+impl XTCFrames {
+    fn __iter__(self_: PyRef<'_, Self>) -> PyRef<'_, Self> {
+        self_
+    }
+
+    fn __next__(&mut self, py: Python) -> io::Result<Option<Py<Frame>>> {
+        self.inner.borrow_mut(py).pop_frame(py)
     }
 }
 
@@ -120,6 +140,21 @@ impl XTCReader {
             frame: None,
             buffered,
         })
+    }
+
+    fn __enter__(self_: PyRef<'_, Self>) -> PyRef<'_, Self> {
+        self_
+    }
+
+    fn __exit__(
+        &mut self,
+        _exc_type: Option<&Bound<'_, PyType>>,
+        _exc_val: Option<&Bound<'_, PyAny>>,
+        _exc_tb: Option<&Bound<'_, PyAny>>,
+    ) -> PyResult<bool> {
+        self.close()?;
+        // Do not suppress exceptions.
+        Ok(false)
     }
 
     #[getter]
@@ -159,6 +194,13 @@ impl XTCReader {
         self.inner()?
             .determine_frame_sizes(until)
             .map(|l| l.to_vec())
+    }
+
+    /// Return an iterator over the remaining frames.
+    fn frames(self_: PyRef<'_, Self>) -> XTCFrames {
+        XTCFrames {
+            inner: self_.into(),
+        }
     }
 
     /// Reset the reading head to the start of the file.
@@ -423,6 +465,21 @@ impl XTCWriter {
         })
     }
 
+    fn __enter__(self_: PyRef<'_, Self>) -> PyRef<'_, Self> {
+        self_
+    }
+
+    fn __exit__(
+        &mut self,
+        _exc_type: Option<&Bound<'_, PyType>>,
+        _exc_val: Option<&Bound<'_, PyAny>>,
+        _exc_tb: Option<&Bound<'_, PyAny>>,
+    ) -> PyResult<bool> {
+        self.close()?;
+        // Do not suppress exceptions.
+        Ok(false)
+    }
+
     /// Write a frame to the XTC file.
     fn write_frame(&mut self, frame: &Frame) -> io::Result<()> {
         self.inner
@@ -443,7 +500,7 @@ impl XTCWriter {
 /// A single trajectory frame.
 ///
 /// All distances are given in nanometers.
-#[pyclass]
+#[pyclass(skip_from_py_object)]
 #[derive(Default, Clone)]
 struct Frame {
     inner: molly::Frame,
